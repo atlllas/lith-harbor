@@ -4,3 +4,65 @@
   padding: 2rem;
   text-align: center;
 }
+
+#tenome-button {
+  margin-bottom: 30px;
+  width: 300px;
+  height: 300px;
+  font-size: 45px;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid white;
+  background-color: transparent;
+  border-radius: 33px;
+}
+
+#tenome-button:hover {
+  background-color: #646cff;
+  color: #fff;
+  transition: 0.3s;
+}
+
+#yijing-button {
+  margin-bottom: 30px;
+  margin-left: 30px;
+  width: 300px;
+  height: 300px;
+  font-size: 45px;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid white;
+  background-color: transparent;
+  border-radius: 33px;
+}
+
+#yijing-button:hover {
+  background-color: #ff64ff;
+  color: #fff;
+  transition: 0.3s;
+}
+
+
+.action-button {
+  margin-left: 0px;
+  font-size: 25px;
+  border: 1px solid white;
+  background-color: transparent;
+  color: white;
+
+}
+
+.action-button:hover {
+  border-color: #646cff;
+  color: #646cff;
+  transition: 0.3s;
+}
+
+#home {
+  margin: 0;
+  align-items: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%)
+}

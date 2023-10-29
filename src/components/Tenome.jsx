@@ -478,13 +478,7 @@ function Tenome() {
                 onClick={() => setIs3DView(!is3DView)}
                 style={{ position: 'fixed', bottom: '10px', right: '10px' }}
             >
-                {is3DView ? 'Switch to 2D' : 'Switch to 3D'}
-            </button>
-            <button
-                className="toggle-view-button"
-                onClick={() => setIs3DView(!is3DView)}
-                style={{ position: 'fixed', bottom: '10px', right: '10px' }}>
-                {is3DView ? 'Switch to 2D' : 'Switch to 3D'}
+                {is3DView ? '2D' : '3D'}
             </button>
 
             {graphData && (

@@ -41,6 +41,7 @@
 .overlay textarea {
     width: 98.5%;
     height: 97%;
+    border-radius: 13px;
     resize: none;
     background-color: transparent;
     border: 1px solid white;
@@ -49,6 +50,7 @@
 
 .overlay input {
     font-size: 25px;
+    border-radius: 13px;
     background-color: transparent;
     border: 1px solid white;
     margin: 0px;
@@ -60,7 +62,8 @@
     border: 1px solid white;
     background-color: transparent;
     color: white;
-
+    border-radius: 13px;
+    width: 128px
 }
 
 #edit-button:hover {
@@ -73,9 +76,10 @@
     margin-left: 0px;
     font-size: 25px;
     border: 1px solid white;
+    border-radius: 13px;
     background-color: transparent;
     color: white;
-
+    width: 128px
 }
 
 #save-button:hover {
@@ -112,10 +116,16 @@
     background-color: transparent;
     position: absolute;
     color: white;
-    font-size: 18px;
+    font-size: 26px;
     border: 1px solid white;
+    border-radius: 23px;
 }
 
 .toggle-view-button:hover{
     background-color: grey;
+}
+
+#buttons-container {
+    display: flex;
+    flex-direction: row
 }

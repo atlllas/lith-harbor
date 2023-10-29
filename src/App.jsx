@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react'
-import { useNavigate,BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useNavigate, BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
 import { initializeApp } from 'firebase/app';
@@ -22,11 +22,11 @@ const auth = getAuth(app);
 const handleLogout = async () => {
   const auth = getAuth();
   try {
-      await signOut(auth);
-      console.log("Logged out successfully!");
-      // Here, you can also add any state changes or navigation if required
+    await signOut(auth);
+    console.log("Logged out successfully!");
+    // Here, you can also add any state changes or navigation if required
   } catch (error) {
-      console.error("Error logging out: ", error);
+    console.error("Error logging out: ", error);
   }
 };
 
@@ -38,13 +38,15 @@ function HomePage() {
   };
 
   return (
-    <div>
-      <h1>Welcome</h1>
-      <button onClick={redirectToTenome}>Tenome Editor</button>
-      <button onClick={handleLogout}>Logout</button>
+    <div id="home">
+      <div id="buttons-container">
+        <button id="tenome-button" onClick={redirectToTenome}>Tenome Editor</button>
+        <button id="yijing-button" onClick={console.log('hi')}>Yijing</button>
+      </div>
+      <button id="logout-button" className="action-button" onClick={handleLogout}>Logout</button>
     </div>
   );
-  }
+}
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
