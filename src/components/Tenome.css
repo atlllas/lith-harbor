@@ -1,0 +1,121 @@
+.Tenome {
+    user-select: none;
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE/Edge */
+}
+
+
+.overlay {
+    position: absolute;
+    top: 20%;
+    left: 10%;
+    width: 450px;
+    height: 300px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+}
+
+.overlay .input-container {
+    display: flex;
+    align-items: center;
+    /* This will ensure the input and button are vertically centered in relation to each other */
+}
+
+.overlay .input-container,
+.overlay .textarea-container {
+    margin: -5px;
+    /* Reset margin */
+    padding: 1px;
+}
+
+.overlay .input-container {
+    flex: 0.2;
+}
+
+.overlay .textarea-container {
+    flex: 0.8;
+}
+
+.overlay textarea {
+    width: 98.5%;
+    height: 97%;
+    resize: none;
+    background-color: transparent;
+    border: 1px solid white;
+    color: white;
+}
+
+.overlay input {
+    font-size: 25px;
+    background-color: transparent;
+    border: 1px solid white;
+    margin: 0px;
+}
+
+#edit-button {
+    margin-left: 10px;
+    font-size: 25px;
+    border: 1px solid white;
+    background-color: transparent;
+    color: white;
+
+}
+
+#edit-button:hover {
+    border-color: #646cff;
+    color: #646cff;
+    transition: 0.3s;
+}
+
+#save-button {
+    margin-left: 0px;
+    font-size: 25px;
+    border: 1px solid white;
+    background-color: transparent;
+    color: white;
+
+}
+
+#save-button:hover {
+    border-color: #646cff;
+    color: #646cff;
+    transition: 0.3s;
+}
+
+.tooltip {
+    position: absolute;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+}
+
+.tooltip-option {
+    height: 40px;
+    width: 80px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background-color: #161616;
+}
+
+.tooltip-option:hover{
+    background-color: grey;
+}
+
+.toggle-view-button {
+    z-index: 3;
+    background-color: transparent;
+    position: absolute;
+    color: white;
+    font-size: 18px;
+    border: 1px solid white;
+}
+
+.toggle-view-button:hover{
+    background-color: grey;
+}
