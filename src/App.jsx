@@ -35,14 +35,20 @@ function HomePage() {
 
   const redirectToTenome = () => {
     navigate('/write');
+    
   };
+
+  const redirectYijing = () => {
+    window.location.href = '/simple.html';
+  };
+  
 
 
   return (
     <div id="home">
       <div id="buttons-container">
         <button id="tenome-button" onClick={redirectToTenome}>Tenome Editor</button>
-        <button id="yijing-button" onClick={console.log('hi')}>Yijing</button>
+        <button id="yijing-button" onClick={redirectYijing}>Yijing</button>
       </div>
       <button id="logout-button" className="action-button" onClick={handleLogout}>Logout</button>
     </div>
@@ -66,6 +72,13 @@ function App() {
         <Route path="/signup" element={isAuthenticated ? <HomePage /> : <SignUp />} />
         <Route path="/write" element={isAuthenticated ? <Tenome /> : <Login />} />
         <Route path="/" element={isAuthenticated ? <HomePage /> : <Login />} />
+        <Route
+          path="/static-page"
+          component={() => {
+            window.location.href = '/simple.html';
+            return null;
+          }}
+        />
       </Routes>
     </Router>
   );
