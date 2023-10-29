@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';  // Import the useNavigate hook
+import './Login.css'
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -25,25 +26,27 @@ function Login() {
   };
 
   return (
-    <div>
-      <h2>Login</h2>
+    <div className="container">
+      <h2>LOGIN</h2>
       <form onSubmit={handleSubmit}>
-        <input 
-          type="email" 
-          placeholder="Email" 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
+      <input
+          id="email"
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
+        <input
+          id="password"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
-        <button type="submit">Login</button>
+        <button id="submit" type="submit">Login</button>
       </form>
       {error && <p>{error}</p>}
-      <button onClick={handleSignUpRedirect}>Sign Up</button> {/* Add this button */}
+      <button id="redirect-button" onClick={handleSignUpRedirect}>Sign Up</button> {/* Add this button */}
     </div>
   );
 }

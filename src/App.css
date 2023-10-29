@@ -4,6 +4,11 @@
   padding: 2rem;
   text-align: center;
 }
+#buttons-container {
+  display: flex;
+  flex-direction: row
+}
+
 
 #tenome-button {
   margin-bottom: 30px;
@@ -12,14 +17,15 @@
   font-size: 45px;
   text-align: center;
   padding: 10px;
-  border: 1px solid white;
+  color: black;
+  border: 1px solid black;
   background-color: transparent;
   border-radius: 33px;
 }
 
 #tenome-button:hover {
   background-color: #646cff;
-  color: #fff;
+  color: black;
   transition: 0.3s;
 }
 
@@ -29,16 +35,17 @@
   width: 300px;
   height: 300px;
   font-size: 45px;
+  color: black;
   text-align: center;
   padding: 10px;
-  border: 1px solid white;
+  border: 1px solid black;
   background-color: transparent;
   border-radius: 33px;
 }
 
 #yijing-button:hover {
   background-color: #ff64ff;
-  color: #fff;
+  color: black;
   transition: 0.3s;
 }
 
@@ -46,9 +53,9 @@
 .action-button {
   margin-left: 0px;
   font-size: 25px;
-  border: 1px solid white;
+  border: 1px solid black;
   background-color: transparent;
-  color: white;
+  color: black ;
 
 }
 
@@ -65,4 +72,12 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%)
+}
+
+#logout-button {
+  border-radius: 13px;
+}
+
+#logout-button:hover {
+  color: black;
 }

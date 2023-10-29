@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shader with Color Input</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.4.5/jscolor.min.js"></script>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #colorInput {
+            width: 200px;
+            height: 40px;
+            text-align: center;
+            font-size: 30px;
+            border-radius: 23px;
+        }
+
+        #vec3Output {
+            color: white;
+            font-family: Helvetica, sans-serif;
+            font-size: 25px;
+        }
+
+        #vec3Output:hover {
+            background-color: rgba(205, 205, 205, 0.5);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: row; align-items: center;">
+        <input type="color" id="colorWheel" value="#2B9139" style="width: 40px; height: 40px; border-radius: 50%; padding: 6px; border: 1px solid white">
+        <div style="padding: 0 15px;"></div>
+        <input type="text" id="colorInput" placeholder="#2B9139">
+    </div>
+    <p id="vec3Output" style="position: absolute; top: 55%; left: 50%; transform: translate(-50%, 0);"></p>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        void main() {
+            gl_Position = vec4(position, 1.0);
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+        uniform vec3 u_color;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        
+        #define OCTAVES  3.0
+        #define LIVE_SMOKE 1
+        
+        float rand(vec2 co) {
+           return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 12.5453);
+        }
+        
+        float rand2(vec2 co) {
+           return fract(cos(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+        
+        float valueNoiseSimple(vec2 vl) {
+           float minStep = 1.0;
+        
+           vec2 grid = floor(vl);
+           vec2 gridPnt1 = grid;
+           vec2 gridPnt2 = vec2(grid.x, grid.y + minStep);
+           vec2 gridPnt3 = vec2(grid.x + minStep, grid.y);
+           vec2 gridPnt4 = vec2(gridPnt3.x, gridPnt2.y);
+        
+           float s = rand2(grid);
+           float t = rand2(gridPnt3);
+           float u = rand2(gridPnt2);
+           float v = rand2(gridPnt4);
+            
+           float x1 = smoothstep(0., 1., fract(vl.x));
+           float interpX1 = mix(s, t, x1);
+           float interpX2 = mix(u, v, x1);
+            
+           float y = smoothstep(0., 1., fract(vl.y));
+           float interpY = mix(interpX1, interpX2, y);
+            
+           return interpY;
+        }
+        
+        float fractalNoise(vec2 vl) {
+           float persistance = 2.0;
+           float amplitude = 0.5;
+           float rez = 0.0;
+           vec2 p = vl;
+            
+           for (float i = 0.0; i < OCTAVES; i++) {
+               rez += amplitude * valueNoiseSimple(p);
+               amplitude /= persistance;
+               p *= persistance;
+           }
+           return rez;
+        }
+        
+        float complexFBM(vec2 p) {
+           float slow = u_time / 2.5;
+           float fast = u_time / .5;
+           vec2 offset1 = vec2(slow, 0.);
+           vec2 offset2 = vec2(sin(fast) * 0.1, 0.);
+        
+           return fractalNoise(p + offset1 + fractalNoise(p + fractalNoise(p + 2. * fractalNoise(p - offset2))));
+        }
+        
+        void main() {
+            float time = 23.0 - u_time * -0.1;
+            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+            vec2 uv_square = vec2(uv.x * u_resolution.x / u_resolution.y, uv.y);
+            float dist_center = pow(2.0 * length(uv - 0.5), 2.0);
+            
+            vec3 cloud = u_color; // Use the u_color uniform value for the cloud color
+            vec3 sky = vec3(0.0);
+            
+            vec3 rez = mix(sky, cloud, complexFBM(uv));
+            
+            gl_FragColor = vec4(rez, 1.0);
+        }
+    </script>
+
+    <script>
+
+        let camera, scene, renderer, uniforms;
+        document.getElementById('vec3Output').addEventListener('click', function () {
+            const text = this.textContent;
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("Copy");
+            textArea.remove();
+        });
+        const colorWheel = document.getElementById('colorWheel');
+        colorWheel.addEventListener('input', function () {
+            const input = document.getElementById('colorInput');
+            input.value = colorWheel.value;
+            const inputEvent = new Event('input');
+            input.dispatchEvent(inputEvent); // Manually trigger the input event for the main color input
+        });
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            init();
+            animate();
+
+            const input = document.getElementById('colorInput');
+            input.addEventListener('input', updateColor);
+
+            // Event listener for keyup to check for Enter key
+            input.addEventListener('keyup', function (event) {
+                if (event.key === 'Enter') {
+                    updateColor(event);
+                }
+            });
+        });
+
+        function init() {
+            // Set up camera and scene
+            camera = new THREE.Camera();
+            camera.position.z = 1;
+            scene = new THREE.Scene();
+
+            // Shader Material with uniforms
+            uniforms = {
+                u_resolution: { type: "v2", value: new THREE.Vector2() },
+                u_time: { type: "f", value: 1.0 },
+                u_color: { type: "c", value: new THREE.Color(0.1686, 0.5686, 0.2235) } // Initial color
+            };
+
+            const material = new THREE.ShaderMaterial({
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragmentShader').textContent,
+                uniforms: uniforms
+            });
+
+            const geometry = new THREE.PlaneBufferGeometry(2, 2);
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // Adjust for resolution
+            onWindowResize();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            uniforms.u_time.value += 0.05;
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.u_resolution.value.x = renderer.domElement.width;
+            uniforms.u_resolution.value.y = renderer.domElement.height;
+        }
+
+        function updateColor(event) {
+            const hexColor = event.target.value;
+            if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hexColor)) {
+                const color = new THREE.Color(hexColor);
+                uniforms.u_color.value = color;
+                const vec3String = `vec3(${color.r.toFixed(4)}, ${color.g.toFixed(4)}, ${color.b.toFixed(4)})`;
+                document.getElementById('vec3Output').textContent = vec3String;
+            }
+        }
+    </script>
+</body>
+
+</html>

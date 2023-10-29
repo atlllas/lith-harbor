@@ -5,7 +5,8 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, runTransaction, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc } from 'firebase/firestore';
 import './Tenome.css';
-import { useWindowSize } from '@react-hook/window-size';
+import { useWindowSize, useWindowWidth } from '@react-hook/window-size';
+import { useNavigate } from 'react-router-dom';
 
 const initialData = {
     "nodes": [
@@ -80,7 +81,63 @@ function Tenome() {
     const [rightClickedNode, setRightClickedNode] = useState(null);
     const [isShiftKeyDown, setIsShiftKeyDown] = useState(false);
     const [rightClickedLink, setRightClickedLink] = useState(null);
-    const [is3DView, setIs3DView] = useState(true);
+    const [is2DView, setis2DView] = useState(true);
+    const [position, setPosition] = useState({ x: 100, y: 150 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
+    const [activeButton, setActiveButton] = useState(null); // 'search', 'journey', or 'browse'
+    const [searchInput, setSearchInput] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
+
+    const navigate = useNavigate();
+
+    const handleGoToHome = () => {
+        navigate('/'); // This assumes that your homepage route is '/'
+    };
+
+    const handleButtonClick = (button) => {
+        setActiveButton(button);
+        // Reset any previous search input and suggestions
+        setSearchInput('');
+        setSuggestions([]);
+    };
+    const handleSearchInputChange = (e) => {
+        setSearchInput(e.target.value);
+        // Populate suggestions based on the current graph data
+        const matchedNodes = graphData.nodes.filter(node => node.id.includes(e.target.value));
+        setSuggestions(matchedNodes);
+    };
+
+    const handleSearchKeyPress = (e) => {
+        if (e.key === 'Enter' && suggestions.length === 1) {
+            setSelectedNode(suggestions[0]); // Select the only matched node
+        }
+    };
+
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        setStartPosition({ x: e.clientX - position.x, y: e.clientY - position.y });
+    };
+
+    const handleMouseMove = (e) => {
+        if (isDragging) {
+            setPosition({ x: e.clientX - startPosition.x, y: e.clientY - startPosition.y });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    useEffect(() => {
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, startPosition]);
 
     // Firebase config stuff:
     const fgRef = useRef();
@@ -115,9 +172,14 @@ function Tenome() {
         setDisplayHeight(window.innerHeight);
     });
 
+    const selectedNodeRef = useRef(null);
+    const currentEnterListenerRef = useRef(null);
+
     const handleNodeClick = (node, event) => {
-        // Check if a node is already selected and if Shift key is down
-        if (selectedNode && isShiftKeyDown) {
+        console.log("Clicked node:", node);
+
+        // If Shift key is down and there's a previously selected node
+        if (isShiftKeyDown && selectedNode) {
             // Create a new link between selectedNode and the newly clicked node
             const newLink = {
                 id: `${selectedNode.id}-${node.id}`,
@@ -149,23 +211,34 @@ function Tenome() {
                     .catch(error => {
                         console.error("Error adding link: ", error);
                     });
-
-                // Clear the selection to avoid unintentional links
-                setSelectedNode(null);
             } else {
                 console.log("Link already exists!");
             }
+
+            // Clear the selection after creating a link
+            setSelectedNode(null);
         } else {
+            // If no Shift key is down or there's no previously selected node, set the clicked node as the selected node
             setSelectedNode(node);
+            selectedNodeRef.current = node; // Update the ref with the new node
+        }
+
+        if (currentEnterListenerRef.current) {
+            window.removeEventListener("keydown", currentEnterListenerRef.current);
         }
 
         const handleEnterPress = (e) => {
             if (e.key === "Enter") {
-                createNewLinkedNode(node);
+                console.log(selectedNodeRef.current)
+                if (selectedNodeRef.current) {
+                    createNewLinkedNode(selectedNodeRef.current);
+                }
             }
         };
+
+        // Store the latest listener in the ref
+        currentEnterListenerRef.current = handleEnterPress;
         window.addEventListener("keydown", handleEnterPress);
-        return () => window.removeEventListener("keydown", handleEnterPress);
     };
 
     const handleNodeRightClick = (node, event) => {
@@ -185,13 +258,24 @@ function Tenome() {
         return Math.random().toString(36).substr(2, length);
     };
 
+    let isTransactionRunning = false;
+
     const createNewLinkedNode = async (baseNode) => {
+        if (isTransactionRunning) {
+            console.error('Transaction is already running');
+            return;
+        }
+
+        isTransactionRunning = true;
+
         const newNodeId = generateRandomString();
+
         const newLink = {
             id: `${baseNode.id} + ${newNodeId}`,
             source: baseNode.id,
             target: newNodeId,
         };
+
         const newNode = {
             id: newNodeId,
             content: '', // You can set default content here or leave it empty
@@ -220,6 +304,7 @@ function Tenome() {
 
         // Save the new node and link to Firestore
         const docRef = doc(db, 'tenomeData', user.uid);
+
         try {
             await runTransaction(db, async (transaction) => {
                 const docSnap = await transaction.get(docRef);
@@ -227,16 +312,28 @@ function Tenome() {
                     throw new Error('Document does not exist!');
                 }
 
-                const filteredNodes = [...docSnap.data().nodes, changes.newNode];
-                const filteredLinks = [...docSnap.data().links, changes.newLink];
+                let currentNodes = docSnap.data().nodes;
+                let currentLinks = docSnap.data().links;
+
+                // Check if newNode and newLink already exist based on their 'id' property
+                if (!currentNodes.some(node => node.id === changes.newNode.id)) {
+                    currentNodes = [...currentNodes, changes.newNode];
+                }
+
+                if (!currentLinks.some(link => link.id === changes.newLink.id)) {
+                    currentLinks = [...currentLinks, changes.newLink];
+                }
 
                 transaction.update(docRef, {
-                    nodes: filteredNodes,
-                    links: filteredLinks
+                    nodes: currentNodes,
+                    links: currentLinks
                 });
             });
+
         } catch (error) {
             console.error("Error updating data:", error);
+        } finally {
+            isTransactionRunning = false;  // Reset the flag after the transaction completes
         }
     };
 
@@ -414,7 +511,10 @@ function Tenome() {
 
     const handleBackgroundClick = () => {
         setSelectedNode(null);
-        setTooltip({ visible: false });     
+        setRightClickedLink(null);
+        setActiveButton(null); // Reset the active button
+        setTooltip({ visible: false });
+
     };
 
     // useEffect(() => {
@@ -424,7 +524,7 @@ function Tenome() {
     //         currentBloomPass.radius = 0.4;
     //         currentBloomPass.threshold = 0;
 
-    //         const composer = fgRef.current.postProcessingComposer();
+    //         const composer = fgRef.current && fgRef.current.postProcessingComposer ? fgRef.current.postProcessingComposer() : null;
 
     //         if (composer) {
     //             // Remove the existing bloom pass if it exists
@@ -441,7 +541,34 @@ function Tenome() {
 
     return (
         <div>
-            <div className="overlay">
+            <div id="buttons-container">
+                <button className="action-button" id="journey-button" onClick={() => handleButtonClick('journey')}>Journey</button>
+                <button className="action-button" id="home-button" onClick={handleGoToHome}>Home</button>
+                {activeButton !== 'search' && <button className="action-button" id="search-button" onClick={() => handleButtonClick('search')}>Search</button>}
+                {activeButton === 'search' &&
+                    <div>
+                        <input
+                            id="node-search"
+                            type="text"
+                            value={searchInput}
+                            onChange={handleSearchInputChange}
+                            onKeyPress={handleSearchKeyPress}
+                        />
+                        <div className="suggestions-box">
+                            {suggestions.map(suggestion => (
+                                <div key={suggestion.id} onClick={() => setSelectedNode(suggestion)}>
+                                    {suggestion.id}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                }
+            </div>
+            <div
+                className="overlay"
+                style={{ left: `${position.x}px`, top: `${position.y}px`, position: 'absolute' }}
+                onMouseDown={handleMouseDown}
+            >
                 <div className="input-container">
                     <input
                         type="text"
@@ -475,41 +602,41 @@ function Tenome() {
             </div>
             <button
                 className="toggle-view-button"
-                onClick={() => setIs3DView(!is3DView)}
+                onClick={() => setis2DView(!is2DView)}
                 style={{ position: 'fixed', bottom: '10px', right: '10px' }}
             >
-                {is3DView ? '2D' : '3D'}
+                {is2DView ? '2D' : '3D'}
             </button>
-
             {graphData && (
-                is3DView ? (
-                    <ForceGraph3D
-                        ref={fgRef}
-                        width={width}
-                        height={height}
-                        backgroundColor="#000"
-                        graphData={graphData}
-                        nodeLabel="id"
-                        onBackgroundClick={handleBackgroundClick}
-                        onNodeClick={handleNodeClick}
-                        onNodeRightClick={handleNodeRightClick}
-                        nodeColor={node => node === selectedNode ? 'blue' : 'white'}
-                        nodeOpacity="1"
-                        linkColor={link => link === rightClickedLink ? 'red' : 'white'}
-                    />
-                ) : (
+                is2DView ? (
                     <ForceGraph2D
                         ref={fgRef}
                         width={width}
                         height={height}
-                        backgroundColor="#000"
+                        backgroundColor="#fff"
                         graphData={graphData}
                         nodeLabel="id"
                         onBackgroundClick={handleBackgroundClick}
                         onNodeClick={handleNodeClick}
                         onNodeRightClick={handleNodeRightClick}
-                        nodeColor={node => node === selectedNode ? 'blue' : 'white'}
-                        linkColor={link => link === rightClickedLink ? 'red' : 'white'}
+                        onLinkRightClick={handleLinkRightClick}
+                        nodeColor={node => node === selectedNode ? 'red' : 'black'}
+                        linkColor={link => link === rightClickedLink ? 'red' : 'black'}
+                    />
+                ) : (
+                    <ForceGraph3D
+                        ref={fgRef}
+                        width={width}
+                        height={height}
+                        backgroundColor="#fff"
+                        graphData={graphData}
+                        nodeLabel="id"
+                        onBackgroundClick={handleBackgroundClick}
+                        onNodeClick={handleNodeClick}
+                        onNodeRightClick={handleNodeRightClick}
+                        nodeColor={node => node === selectedNode ? 'red' : 'black'}
+                        nodeOpacity={1}
+                        linkColor={link => link === rightClickedLink ? 'red' : 'black'}
                     />
                 )
             )}

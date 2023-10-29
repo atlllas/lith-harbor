@@ -4,7 +4,7 @@ import Login from './components/Login';
 import SignUp from './components/SignUp';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
-
+import './App.css'
 import Tenome from './components/Tenome'
 
 const firebaseConfig = {
@@ -36,6 +36,7 @@ function HomePage() {
   const redirectToTenome = () => {
     navigate('/write');
   };
+
 
   return (
     <div id="home">
