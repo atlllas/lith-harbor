@@ -174,7 +174,7 @@ function Tenome() {
 
     const selectedNodeRef = useRef(null);
     const currentEnterListenerRef = useRef(null);
-
+    
     const handleNodeClick = (node, event) => {
         console.log("Clicked node:", node);
 
