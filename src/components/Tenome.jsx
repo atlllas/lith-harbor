@@ -7,6 +7,7 @@ import { getFirestore, doc, runTransaction, updateDoc, arrayUnion, arrayRemove, 
 import './Tenome.css';
 import { useWindowSize, useWindowWidth } from '@react-hook/window-size';
 import { useNavigate } from 'react-router-dom';
+import { tokenize, tfidf, cosineSimilarity } from './tfidfHelpers'; // assuming both files are in the same directory
 
 const initialData = {
     "nodes": [
@@ -89,6 +90,8 @@ function Tenome() {
     const [searchInput, setSearchInput] = useState('');
     const [suggestions, setSuggestions] = useState([]);
 
+    // Navigation stuff
+
     const navigate = useNavigate();
 
     const handleGoToHome = () => {
@@ -139,6 +142,11 @@ function Tenome() {
         };
     }, [isDragging, startPosition]);
 
+    window.addEventListener('resize', () => {
+        setDisplayWidth(window.innerWidth);
+        setDisplayHeight(window.innerHeight);
+    });
+
     // Firebase config stuff:
     const fgRef = useRef();
 
@@ -167,10 +175,46 @@ function Tenome() {
         fetchData();
     }, [db, user]);
 
-    window.addEventListener('resize', () => {
-        setDisplayWidth(window.innerWidth);
-        setDisplayHeight(window.innerHeight);
-    });
+    //Document stuff
+    const handleConnect = () => {
+        const threshold = 0.9; // You can adjust this value as needed
+        const newLinks = [];
+
+        for (let i = 0; i < graphData.nodes.length; i++) {
+            for (let j = i + 1; j < graphData.nodes.length; j++) {
+                const nodeA = graphData.nodes[i];
+                const nodeB = graphData.nodes[j];
+
+                const tokensA = tokenize(nodeA.content);
+                const tokensB = tokenize(nodeB.content);
+
+                const terms = new Set([...tokensA, ...tokensB]);
+
+                let tfidfA = {};
+                let tfidfB = {};
+
+                for (let term of terms) {
+                    tfidfA[term] = tfidf(term, tokensA, [nodeA.content, nodeB.content]);
+                    tfidfB[term] = tfidf(term, tokensB, [nodeA.content, nodeB.content]);
+                }
+
+                const similarity = cosineSimilarity(tfidfA, tfidfB);
+
+                if (similarity > threshold) {
+                    newLinks.push({
+                        id: `${nodeA.id} + ${nodeB.id}`,
+                        source: nodeA.id,
+                        target: nodeB.id
+                    });
+                }
+            }
+        }
+
+        setGraphData(prevData => ({
+            nodes: [...prevData.nodes],
+            links: [...new Set([...prevData.links, ...newLinks])] // Avoid duplicate links
+        }));
+    };
 
     const selectedNodeRef = useRef(null);
     const currentEnterListenerRef = useRef(null);
@@ -542,6 +586,7 @@ function Tenome() {
     return (
         <div>
             <div id="buttons-container">
+                <button className="action-button" onClick={handleConnect}>Connect</button>
                 <button className="action-button" id="journey-button" onClick={() => handleButtonClick('journey')}>Journey</button>
                 <button className="action-button" id="home-button" onClick={handleGoToHome}>Home</button>
                 {activeButton !== 'search' && <button className="action-button" id="search-button" onClick={() => handleButtonClick('search')}>Search</button>}
