@@ -175,9 +175,35 @@ function Tenome() {
         fetchData();
     }, [db, user]);
 
+
     //Document stuff
+    const thresholdSlider = useRef(null);
+    const thresholdValue = useRef(null);
+
+    useEffect(() => {
+        if (thresholdSlider.current && thresholdValue.current) {
+            thresholdSlider.current.addEventListener('input', function () {
+                thresholdValue.current.textContent = this.value;
+
+                const percentage = (this.value - this.min) / (this.max - this.min);
+                const leftPosition = percentage * this.offsetWidth;
+                thresholdValue.current.style.left = `${leftPosition}px`;
+            });
+        }
+    }, []);
+
+    const displayThresholdUI = () => {
+        if (thresholdSlider.current && thresholdValue.current) {
+            const isHidden = thresholdSlider.current.style.opacity === "0" || thresholdSlider.current.style.opacity === "";
+            thresholdSlider.current.style.opacity = isHidden ? "1" : "0";
+            thresholdValue.current.style.opacity = isHidden ? "1" : "0";
+            document.getElementById("applyButton").style.opacity = isHidden ? "1" : "0";
+        }
+    };
+
     const handleConnect = () => {
-        const threshold = 0.9; // You can adjust this value as needed
+
+        const threshold = parseFloat(thresholdSlider.value); // Get value from slider
         const newLinks = [];
 
         for (let i = 0; i < graphData.nodes.length; i++) {
@@ -218,7 +244,7 @@ function Tenome() {
 
     const selectedNodeRef = useRef(null);
     const currentEnterListenerRef = useRef(null);
-    
+
     const handleNodeClick = (node, event) => {
         console.log("Clicked node:", node);
 
@@ -585,8 +611,17 @@ function Tenome() {
 
     return (
         <div>
+            <div id="actions-container">
+                <button id="remixButton" onClick={displayThresholdUI}>Remix</button>
+                <div id="threshold-container">
+                    <label htmlFor="thresholdSlider"><span id="thresholdValue" ref={thresholdValue}>0.9</span></label>
+                    <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" defaultValue="0.9" ref={thresholdSlider} />
+                    <button id="applyButton" onClick={handleConnect}></button>
+                </div>
+                <button id="uploadButton" onClick={console.log("hi")}>Upload</button>
+
+            </div>
             <div id="buttons-container">
-                <button className="action-button" onClick={handleConnect}>Connect</button>
                 <button className="action-button" id="journey-button" onClick={() => handleButtonClick('journey')}>Journey</button>
                 <button className="action-button" id="home-button" onClick={handleGoToHome}>Home</button>
                 {activeButton !== 'search' && <button className="action-button" id="search-button" onClick={() => handleButtonClick('search')}>Search</button>}

@@ -164,12 +164,15 @@ html,
 
 #buttons-container {
     padding-top: 10px;
-    position: relative;  /* Use relative if you don't have a specific need for absolute */
+    position: relative;
+    /* Use relative if you don't have a specific need for absolute */
     z-index: 3;
     display: flex;
-    margin: 0 auto;      /* Horizontal centering */
+    margin: 0 auto;
+    /* Horizontal centering */
     justify-content: center;
-    width: fit-content; /* Make the width just large enough to fit its content */
+    width: fit-content;
+    /* Make the width just large enough to fit its content */
 }
 
 #search-button:hover {
@@ -207,4 +210,67 @@ html,
     font-size: 20px;
     background-color: rgba(128, 128, 128, 0.861);
     margin-left: 3px;
+}
+
+#actions-container {
+    position: absolute;
+    background-color: transparent;
+    padding-right: 0    px;
+    border-radius: 13px;
+    z-index: 3;
+    right: 0%;
+    /* This will position the container 10% from the right edge */
+    top: 50%;
+    /* This will position the container at the vertical center */
+    transform: translateY(-50%);
+    /* This will adjust the container to truly center it vertically */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+#remixButton {
+    border: 1px solid white;
+    background-color: #5EC4F0;
+    font-size: 25px;
+    border-radius: 33px;
+    width: 140px;
+    height: 40px;
+}
+
+#applyButton {
+    opacity: 0;
+    width: 25px;
+    height: 25px;
+    background-color: rgba(78, 255, 84, 0.722);
+    border: transparent;
+    border-radius: 100%;
+}
+
+#thresholdSlider {
+    width: 130px;
+    opacity: 0;
+}
+
+#threshold-container {
+    padding-right: 10px;
+    display: flex;
+    flex-direction: row;
+}
+
+#thresholdValue {
+    color: black;
+    opacity: 0;
+    position: absolute;
+    bottom: -20px;
+    /* adjust this as needed */
+}
+
+#uploadButton {
+    border: 1px solid white;
+    background-color: #A9FF53;
+    font-size: 25px;
+    border-radius: 33px;
+    width: 140px;
+    height: 40px;
 }
