@@ -338,25 +338,45 @@ function Tenome() {
 
     const handleSave = () => {
         if (selectedNode) {
-            const nodeId = selectedNode.id;
+            const oldNodeId = selectedNodeRef.current.id; // The old Node ID
+            const newNodeId = selectedNode.id;
             const nodeContent = selectedNode.content;
     
+            // Update the nodes with the new ID and content
             const newNodesArray = graphData.nodes.map((node) =>
-                node.id === nodeId ? { ...node, content: nodeContent } : node
+                node.id === oldNodeId ? { ...node, id: newNodeId, content: nodeContent } : node
             );
     
-            // Log the new graph data to be saved
-            console.log({
-                nodes: newNodesArray,
-                links: graphData.links // This should be the same as before
+            // Find the actual node objects for the old ID
+            const oldNodeObject = graphData.nodes.find(node => node.id === oldNodeId);
+            const newNodeObject = newNodesArray.find(node => node.id === newNodeId);
+    
+            // Update the links to reference the new node object if necessary
+            const newLinksArray = graphData.links.map((link) => {
+                let updatedLink = { ...link };
+                if (link.source === oldNodeObject) {
+                    updatedLink.source = newNodeObject;
+                }
+                if (link.target === oldNodeObject) {
+                    updatedLink.target = newNodeObject;
+                }
+                return updatedLink;
             });
     
-            updateGraphData({ ...graphData, nodes: newNodesArray });
+            // Log the updated graph data
+            console.log({
+                nodes: newNodesArray,
+                links: newLinksArray // Updated links array
+            });
+    
+            // Update the graph data with the new nodes and links
+            updateGraphData({ nodes: newNodesArray, links: newLinksArray });
             setIsEditable(false);
+            // Clear the selected node
+            setSelectedNode(null);
         }
     };
     
-
     const deleteNode = () => {
         if (!rightClickedNode) return;
 
@@ -371,7 +391,7 @@ function Tenome() {
         setRightClickedNode(null);
         setTooltip({ visible: false });
     };
-    
+
     const deleteLink = () => {
         if (!rightClickedLink) return;
 
@@ -452,30 +472,30 @@ function Tenome() {
     const handleUploadGraph = (event) => {
         const fileReader = new FileReader();
         const file = event.target.files[0];
-      
+
         fileReader.readAsText(file);
-      
+
         fileReader.onload = (e) => {
-          try {
-            const jsonData = JSON.parse(e.target.result);
-            // Assuming you have a state variable called `graphData`
-            if (jsonData.nodes && jsonData.links) {
-              setGraphData(jsonData); // Use your state update function here
-            } else {
-              console.error("Invalid file format");
+            try {
+                const jsonData = JSON.parse(e.target.result);
+                // Assuming you have a state variable called `graphData`
+                if (jsonData.nodes && jsonData.links) {
+                    setGraphData(jsonData); // Use your state update function here
+                } else {
+                    console.error("Invalid file format");
+                }
+            } catch (error) {
+                console.error("Error reading JSON:", error);
             }
-          } catch (error) {
-            console.error("Error reading JSON:", error);
-          }
         };
-      
+
         fileReader.onerror = () => {
-          console.error("There was an error reading the file");
+            console.error("There was an error reading the file");
         };
 
         event.target.value = '';
-      };
-      
+    };
+
     const handleBackgroundClick = () => {
         setSelectedNode(null);
         setRightClickedLink(null);
@@ -493,7 +513,7 @@ function Tenome() {
                     <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" defaultValue="0.9" ref={thresholdSlider} />
                     <button id="applyButton" onClick={handleConnect}></button>
                 </div>
-                <input type="file" id="fileInput" style={{ display: 'none' }}  accept=".json" onChange={handleUploadGraph} />
+                <input type="file" id="fileInput" style={{ display: 'none' }} accept=".json" onChange={handleUploadGraph} />
                 <button className="interact-button" id="uploadButton" onClick={() => document.getElementById('fileInput').click()}>Upload</button>
                 <button className="interact-button" id="downloadButton" onClick={handleDownloadGraph}>Download</button>
                 <button className="interact-button" id="clearButton" onClick={handleClearGraph}>Clear</button>
