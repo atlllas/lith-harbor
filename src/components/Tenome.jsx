@@ -1,40 +1,34 @@
 import { useRef, useEffect, useState } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import ForceGraph2D from 'react-force-graph-2d';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass'; // Ensure you have this dependency
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, runTransaction, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc } from 'firebase/firestore';
 import './Tenome.css';
 import { useWindowSize, useWindowWidth } from '@react-hook/window-size';
 import { useNavigate } from 'react-router-dom';
 import { tokenize, tfidf, cosineSimilarity } from './tfidfHelpers'; // assuming both files are in the same directory
 
+const LOCAL_STORAGE_KEY = 'tenomeGraphData';
+
 const initialData = {
     "nodes": [
         {
             "id": "completeness",
-            "source": "Nothing by Roy Sorenson",
             "content": "A drive for completeness leads us to postulate larger and larger wholes, ultimately yielding the maximal whole, the World."
         },
         {
             "id": "fiction",
-            "source": "Nothing by Roy Sorenson",
             "content": "Participating in a fiction analogous to running downhill. If the slope is gentle, then running gets us to our destination faster. If the hill is steep, then each brisk step forces raises commitment to a yet brisker step. We find ourselves running faster and faster just to stay upright. The initial thrill of acceleration metastases into dread. The reminder 'This is just a game' checks your descent but also deflates interest"
         },
 
         {
             "id": "experience",
-            "source": "Nothing by Roy Sorenson",
             "content": "The experienced player suspends disbelief just enough to enjoy the fruits of the fiction"
         },
         {
             "id": "languages",
-            "source": "Nothing by Roy Sorenson",
             "content": "Languages indicate grammatical roles by either marking the words themselves (as in plural dogs) or by marking the role with word order ('Man bites dog' is parsed different from 'Dog bites man' despite having the same words)."
         },
         {
             "id": "shadows",
-            "source": "Nothing by Roy Sorenson",
             "content": "'The shadow of a flying bird as never stirred.' According to Mo Tzu (300 BC), no shadow can stir. Shadows exist only for an instant. They do not persist through time. The bird persists through time because one stage of the bird causes the next stage. Shadows lack this immanent causation."
         },
         {
@@ -45,27 +39,22 @@ const initialData = {
 
     "links": [
         {
-            "id": "completeness + fiction",
             "source": "completeness",
             "target": "fiction"
         },
         {
-            "id": "fiction + experience",
             "source": "fiction",
             "target": "experience"
         },
         {
-            "id": "fiction + languages",
             "source": "fiction",
             "target": "languages"
         },
         {
-            "id": "languages + shadows",
             "source": "languages",
             "target": "shadows"
         },
         {
-            "id": "languages + neuroscience",
             "source": "languages",
             "target": "neuroscience"
         }
@@ -73,11 +62,9 @@ const initialData = {
 };
 
 function Tenome() {
-    const [graphData, setGraphData] = useState(null);
     const [selectedNode, setSelectedNode] = useState(null);
     const [isEditable, setIsEditable] = useState(false);
     const [width, height] = useWindowSize();
-    const [bloomPass, setBloomPass] = useState(null);
     const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0 });
     const [rightClickedNode, setRightClickedNode] = useState(null);
     const [isShiftKeyDown, setIsShiftKeyDown] = useState(false);
@@ -89,14 +76,12 @@ function Tenome() {
     const [activeButton, setActiveButton] = useState(null); // 'search', 'journey', or 'browse'
     const [searchInput, setSearchInput] = useState('');
     const [suggestions, setSuggestions] = useState([]);
+    const [graphData, setGraphData] = useState(initialData);
 
     // Navigation stuff
 
     const navigate = useNavigate();
-
-    const handleGoToHome = () => {
-        navigate('/'); // This assumes that your homepage route is '/'
-    };
+    const handleGoToHome = () => navigate('/');
 
     const handleButtonClick = (button) => {
         setActiveButton(button);
@@ -104,6 +89,7 @@ function Tenome() {
         setSearchInput('');
         setSuggestions([]);
     };
+
     const handleSearchInputChange = (e) => {
         setSearchInput(e.target.value);
         // Populate suggestions based on the current graph data
@@ -117,66 +103,30 @@ function Tenome() {
         }
     };
 
+    // Text editor dragging
     const handleMouseDown = (e) => {
         setIsDragging(true);
         setStartPosition({ x: e.clientX - position.x, y: e.clientY - position.y });
     };
-
     const handleMouseMove = (e) => {
         if (isDragging) {
             setPosition({ x: e.clientX - startPosition.x, y: e.clientY - startPosition.y });
         }
     };
-
     const handleMouseUp = () => {
         setIsDragging(false);
     };
-
     useEffect(() => {
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
-
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isDragging, startPosition]);
 
-    window.addEventListener('resize', () => {
-        setDisplayWidth(window.innerWidth);
-        setDisplayHeight(window.innerHeight);
-    });
 
-    // Firebase config stuff:
-    const fgRef = useRef();
-
-    const db = getFirestore();
-    const auth = getAuth();
-    const user = auth.currentUser;
-
-    // Get data from firebase:
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const docRef = doc(db, 'tenomeData', user.uid);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    setGraphData(docSnap.data());
-                } else {
-                    await setDoc(docRef, initialData);
-                    setGraphData(initialData);
-                }
-            } catch (error) {
-                console.error("Error fetching data:", error);
-            }
-        };
-
-        fetchData();
-    }, [db, user]);
-
-
-    //Document stuff
+    // TFIDF editor
     const thresholdSlider = useRef(null);
     const thresholdValue = useRef(null);
 
@@ -242,6 +192,23 @@ function Tenome() {
         }));
     };
 
+    useEffect(() => {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(graphData));
+    }, [graphData]);
+
+    useEffect(() => {
+        const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedData) {
+            setGraphData(JSON.parse(savedData));
+        } else {
+            // If there's no saved data, use the initialData and save it to localStorage
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(initialData));
+            setGraphData(initialData);
+        }
+    }, []);
+
+
+    // Ref for node interactions;
     const selectedNodeRef = useRef(null);
     const currentEnterListenerRef = useRef(null);
 
@@ -328,83 +295,27 @@ function Tenome() {
         return Math.random().toString(36).substr(2, length);
     };
 
-    let isTransactionRunning = false;
+    const updateGraphData = (newGraphData) => {
+        setGraphData(newGraphData);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newGraphData));
+    };
 
-    const createNewLinkedNode = async (baseNode) => {
-        if (isTransactionRunning) {
-            console.error('Transaction is already running');
-            return;
-        }
-
-        isTransactionRunning = true;
-
+    const createNewLinkedNode = (baseNode) => {
         const newNodeId = generateRandomString();
-
         const newLink = {
             id: `${baseNode.id} + ${newNodeId}`,
             source: baseNode.id,
             target: newNodeId,
         };
-
         const newNode = {
             id: newNodeId,
-            content: '', // You can set default content here or leave it empty
+            content: '', // Set default content or leave empty
         };
 
-        setGraphData(prevData => ({
-            nodes: [...prevData.nodes, newNode],
-            links: [...prevData.links, newLink],
-        }));
-
-        // Define the changes to be saved
-        const changes = {
-            newNode: {
-                id: newNode.id,
-                content: newNode.content
-            },
-            newLink: {
-                id: newLink.id,
-                source: newLink.source,
-                target: newLink.target
-            }
-        };
-
-        // Log the changes before pushing to Firestore
-        console.log("Changes to be saved:", changes);
-
-        // Save the new node and link to Firestore
-        const docRef = doc(db, 'tenomeData', user.uid);
-
-        try {
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) {
-                    throw new Error('Document does not exist!');
-                }
-
-                let currentNodes = docSnap.data().nodes;
-                let currentLinks = docSnap.data().links;
-
-                // Check if newNode and newLink already exist based on their 'id' property
-                if (!currentNodes.some(node => node.id === changes.newNode.id)) {
-                    currentNodes = [...currentNodes, changes.newNode];
-                }
-
-                if (!currentLinks.some(link => link.id === changes.newLink.id)) {
-                    currentLinks = [...currentLinks, changes.newLink];
-                }
-
-                transaction.update(docRef, {
-                    nodes: currentNodes,
-                    links: currentLinks
-                });
-            });
-
-        } catch (error) {
-            console.error("Error updating data:", error);
-        } finally {
-            isTransactionRunning = false;  // Reset the flag after the transaction completes
-        }
+        updateGraphData({
+            nodes: [...graphData.nodes, newNode],
+            links: [...graphData.links, newLink],
+        });
     };
 
     const handleLinkRightClick = (link, event) => {
@@ -425,136 +336,54 @@ function Tenome() {
         }));
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (selectedNode) {
-            const nodeId = document.querySelector('.overlay .input-container input').value;
-            const nodeContent = document.querySelector('.overlay .textarea-container textarea').value;
-
-            const docRef = doc(db, 'tenomeData', user.uid);
-
-            if (nodeId && nodeContent) {
-                const oldNodeId = selectedNode.id;
-
-                const newNodeForFirebase = {
-                    id: nodeId,
-                    content: nodeContent
-                };
-
-                await runTransaction(db, async (transaction) => {
-                    const docSnap = await transaction.get(docRef);
-                    if (!docSnap.exists()) {
-                        throw new Error('Document does not exist!');
-                    }
-
-                    let currentData = docSnap.data();
-
-                    let nodesArray = currentData.nodes;
-
-                    nodesArray = nodesArray.filter(node => node.id !== oldNodeId);
-                    nodesArray.push(newNodeForFirebase);
-
-                    let linksArray = currentData.links;
-
-                    if (nodeId !== oldNodeId) {
-                        linksArray = linksArray.map(link => {
-                            if (link.source === oldNodeId) {
-                                return { ...link, source: nodeId };
-                            } else if (link.target === oldNodeId) {
-                                return { ...link, target: nodeId };
-                            } else {
-                                return link;
-                            }
-                        });
-                    }
-
-                    transaction.set(docRef, {
-                        nodes: nodesArray,
-                        links: linksArray
-                    });
-                });
-
-                setIsEditable(false);
-            }
-        }
-    };
-
-    const deleteNode = async () => {
-        if (!rightClickedNode) return; // Return early if no node selected
-
-        const docRef = doc(db, 'tenomeData', user.uid);
-
-        try {
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) {
-                    throw new Error('Document does not exist!');
-                }
-
-                // Filter out the selected node
-                const nodesArray = docSnap.data().nodes.filter(node => node.id !== rightClickedNode.id);
-
-                // Filter out the links associated with the selected node
-                const linksArray = docSnap.data().links.filter(link => link.source !== rightClickedNode.id && link.target !== rightClickedNode.id);
-
-                // Save the updated nodes and links
-                transaction.set(docRef, {
-                    nodes: nodesArray,
-                    links: linksArray
-                });
+            const nodeId = selectedNode.id;
+            const nodeContent = selectedNode.content;
+    
+            const newNodesArray = graphData.nodes.map((node) =>
+                node.id === nodeId ? { ...node, content: nodeContent } : node
+            );
+    
+            // Log the new graph data to be saved
+            console.log({
+                nodes: newNodesArray,
+                links: graphData.links // This should be the same as before
             });
-
-            // Update local state to reflect the deletion
-            setGraphData(prevData => ({
-                nodes: prevData.nodes.filter(node => node.id !== rightClickedNode.id),
-                links: prevData.links.filter(link => link.source !== rightClickedNode.id && link.target !== rightClickedNode.id)
-            }));
-
-            // Clear the right-clicked node
-            setRightClickedNode(null);
-            setTooltip({ visible: false });
-
-        } catch (error) {
-            console.error("Error deleting node:", error);
+    
+            updateGraphData({ ...graphData, nodes: newNodesArray });
+            setIsEditable(false);
         }
     };
+    
 
-    const deleteLink = async () => {
-        if (!rightClickedLink) return; // Return early if no link selected
+    const deleteNode = () => {
+        if (!rightClickedNode) return;
 
-        const docRef = doc(db, 'tenomeData', user.uid);
+        const newNodes = graphData.nodes.filter(node => node.id !== rightClickedNode.id);
+        const newLinks = graphData.links.filter(link => link.source !== rightClickedNode.id && link.target !== rightClickedNode.id);
 
-        try {
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) {
-                    throw new Error('Document does not exist!');
-                }
+        updateGraphData({
+            nodes: newNodes,
+            links: newLinks
+        });
 
-                // Filter out the selected link
-                const linksArray = docSnap.data().links.filter(link => link.id !== rightClickedLink.id);
-
-                // Save the updated links
-                transaction.set(docRef, {
-                    nodes: docSnap.data().nodes,
-                    links: linksArray
-                });
-            });
-
-            // Update local state to reflect the deletion
-            setGraphData(prevData => ({
-                nodes: prevData.nodes,
-                links: prevData.links.filter(link => link.id !== rightClickedLink.id)
-            }));
-
-            // Clear the right-clicked link
-            setRightClickedLink(null);
-            setTooltip({ visible: false });
-
-        } catch (error) {
-            console.error("Error deleting link:", error);
-        }
+        setRightClickedNode(null);
+        setTooltip({ visible: false });
     };
+    
+    const deleteLink = () => {
+        if (!rightClickedLink) return;
 
+        const newLinks = graphData.links.filter(link => link.id !== rightClickedLink.id);
+        updateGraphData({
+            ...graphData,
+            links: newLinks
+        });
+
+        setRightClickedLink(null);
+        setTooltip({ visible: false });
+    };
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -578,7 +407,75 @@ function Tenome() {
         };
     }, []);
 
+    const handleClearGraph = () => {
+        console.log('Current graph data before clearing:', graphData);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        setGraphData(initialData);
+    };
 
+    const handleDownloadGraph = () => {
+        // Prepare the nodes data by extracting only the necessary properties
+        const nodesToDownload = graphData.nodes.map(node => ({
+            id: node.id,
+            source: node.source,
+            content: node.content
+        }));
+
+        // Prepare the links data by extracting only the necessary properties
+        const linksToDownload = graphData.links.map(link => ({
+            source: link.source.id, // Assuming the source and target in your graphData are objects with an id property
+            target: link.target.id
+        }));
+
+        // Combine nodes and links into a single object for download
+        const dataToDownload = {
+            nodes: nodesToDownload,
+            links: linksToDownload
+        };
+
+        // Convert it to a string and create a blob
+        const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], { type: 'application/json' });
+
+        // Create a link element, set the download attribute with a filename
+        const link = document.createElement('a');
+        link.download = 'graph-data.json';
+
+        // Create a URL for the blob and set it as href on the link element
+        link.href = window.URL.createObjectURL(blob);
+
+        // Append the link to the body, click it, and then remove it
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleUploadGraph = (event) => {
+        const fileReader = new FileReader();
+        const file = event.target.files[0];
+      
+        fileReader.readAsText(file);
+      
+        fileReader.onload = (e) => {
+          try {
+            const jsonData = JSON.parse(e.target.result);
+            // Assuming you have a state variable called `graphData`
+            if (jsonData.nodes && jsonData.links) {
+              setGraphData(jsonData); // Use your state update function here
+            } else {
+              console.error("Invalid file format");
+            }
+          } catch (error) {
+            console.error("Error reading JSON:", error);
+          }
+        };
+      
+        fileReader.onerror = () => {
+          console.error("There was an error reading the file");
+        };
+
+        event.target.value = '';
+      };
+      
     const handleBackgroundClick = () => {
         setSelectedNode(null);
         setRightClickedLink(null);
@@ -587,38 +484,19 @@ function Tenome() {
 
     };
 
-    // useEffect(() => {
-    //     if (fgRef.current) {
-    //         const currentBloomPass = new UnrealBloomPass();
-    //         currentBloomPass.strength = 1.4;
-    //         currentBloomPass.radius = 0.4;
-    //         currentBloomPass.threshold = 0;
-
-    //         const composer = fgRef.current && fgRef.current.postProcessingComposer ? fgRef.current.postProcessingComposer() : null;
-
-    //         if (composer) {
-    //             // Remove the existing bloom pass if it exists
-    //             if (bloomPass) {
-    //                 composer.removePass(bloomPass);
-    //             }
-
-    //             composer.addPass(currentBloomPass);
-    //             setBloomPass(currentBloomPass);
-    //         }
-    //     }
-    // }, [graphData]); // Run this effect when graphData is set
-
-
     return (
         <div>
             <div id="actions-container">
-                <button id="remixButton" onClick={displayThresholdUI}>Remix</button>
+                <button className="interact-button" id="remixButton" onClick={displayThresholdUI}>Remix</button>
                 <div id="threshold-container">
                     <label htmlFor="thresholdSlider"><span id="thresholdValue" ref={thresholdValue}>0.9</span></label>
                     <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" defaultValue="0.9" ref={thresholdSlider} />
                     <button id="applyButton" onClick={handleConnect}></button>
                 </div>
-                <button id="uploadButton" onClick={console.log("hi")}>Upload</button>
+                <input type="file" id="fileInput" style={{ display: 'none' }}  accept=".json" onChange={handleUploadGraph} />
+                <button className="interact-button" id="uploadButton" onClick={() => document.getElementById('fileInput').click()}>Upload</button>
+                <button className="interact-button" id="downloadButton" onClick={handleDownloadGraph}>Download</button>
+                <button className="interact-button" id="clearButton" onClick={handleClearGraph}>Clear</button>
 
             </div>
             <div id="buttons-container">
@@ -690,33 +568,31 @@ function Tenome() {
             {graphData && (
                 is2DView ? (
                     <ForceGraph2D
-                        ref={fgRef}
                         width={width}
                         height={height}
-                        backgroundColor="#fff"
+                        backgroundColor="#000"
                         graphData={graphData}
                         nodeLabel="id"
                         onBackgroundClick={handleBackgroundClick}
                         onNodeClick={handleNodeClick}
                         onNodeRightClick={handleNodeRightClick}
                         onLinkRightClick={handleLinkRightClick}
-                        nodeColor={node => node === selectedNode ? 'red' : 'black'}
-                        linkColor={link => link === rightClickedLink ? 'red' : 'black'}
+                        nodeColor={node => node === selectedNode ? 'red' : 'white'}
+                        linkColor={link => link === rightClickedLink ? 'red' : 'white'}
                     />
                 ) : (
                     <ForceGraph3D
-                        ref={fgRef}
                         width={width}
                         height={height}
-                        backgroundColor="#fff"
+                        backgroundColor="#000"
                         graphData={graphData}
                         nodeLabel="id"
                         onBackgroundClick={handleBackgroundClick}
                         onNodeClick={handleNodeClick}
                         onNodeRightClick={handleNodeRightClick}
-                        nodeColor={node => node === selectedNode ? 'red' : 'black'}
+                        nodeColor={node => node === selectedNode ? 'red' : 'white'}
                         nodeOpacity={1}
-                        linkColor={link => link === rightClickedLink ? 'red' : 'black'}
+                        linkColor={link => link === rightClickedLink ? 'red' : 'white'}
                     />
                 )
             )}
